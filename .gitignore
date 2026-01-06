@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Database
+*.db
+
+# Build
+build/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project Specific
+mistakes_images/
+docs/
+image.png
+logo.jpg
+hoca_listesi.json
+youtube_data.json
+kpss_data.json
