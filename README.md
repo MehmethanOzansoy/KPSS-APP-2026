@@ -2,8 +2,6 @@
 
 Modern, hızlı ve kullanımı kolay bir KPSS (Kamu Personeli Seçme Sınavı) hazırlık takip uygulaması.
 
-![Uygulama Ekran Görüntüsü](assets/image.png)
-
 ## ✨ Özellikler
 
 - 📊 **Gelişmiş İstatistikler**: Günlük soru çözümü ısı haritası, net gelişim grafikleri ve ders başarı oranları.
@@ -45,5 +43,3 @@ Modern, hızlı ve kullanımı kolay bir KPSS (Kamu Personeli Seçme Sınavı) h
 
 Bu proje MIT Lisansı ile lisanslanmıştır.
 
----
-*İyi çalışmalar ve başarılar dilerim!* 🎯
