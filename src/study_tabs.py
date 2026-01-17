@@ -249,3 +249,14 @@ class StudyTabsMixin:
             d, y = int(self.net_entries[k][0].get() or 0), int(self.net_entries[k][1].get() or 0); n = d - y/4; r[k] = n; self.net_labels[k].configure(text=f"{n:.2f}")
         p3 = min(100, 55 + (r["gy"]*0.41) + (r["gk"]*0.38)); p10 = min(100, 42 + (r["gy"]*0.3) + (r["gk"]*0.3) + (r["eb"]*0.4))
         self.lbl_p3.configure(text=f"P3: {p3:.3f}"); self.lbl_p10.configure(text=f"P10: {p10:.3f}")
+
+    CREATE TABLE IF NOT EXISTS logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tarih TEXT,
+        olay TEXT
+    );
+    def log_event(self, msg):
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("INSERT INTO logs (tarih, olay) VALUES (?,?)",
+            (datetime.now().isoformat(), msg))
+        conn.commit(); conn.close()
