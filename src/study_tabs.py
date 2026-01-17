@@ -6,6 +6,7 @@ import sqlite3
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from config import DB_FILE
+import numpy as np
 
 class StudyTabsMixin:
     # ---- 2. PROGRESS ----
@@ -73,6 +74,7 @@ class StudyTabsMixin:
         for s in self.data["subjects"]:
             target = self.tree_gy if s["kategori"] == "GY" else self.tree_gk
             target.insert("", "end", iid=str(s["id"]), values=(s["ders"], s["konu"], s["durum"]))
+
 
     # ---- 4. HEDEFLER ----
     def build_goals_tab(self):
@@ -200,6 +202,13 @@ class StudyTabsMixin:
         self.ax_trial.clear()
         if dates: self.ax_trial.plot(dates, nets, marker='o', color='green'); self.ax_trial.tick_params(axis='x', rotation=45, labelsize=8)
         self.canvas_trial.draw()
+        if len(nets) >= 3:
+            x = np.arange(len(nets))
+            y = np.array(nets)
+            a, b = np.polyfit(x, y, 1)   # y = ax + b
+            next_net = a * len(nets) + b
+            self.ax_trial.axhline(next_net, linestyle="--")
+            self.ax_trial.text(len(nets)-1, next_net, f"Tahmin: {next_net:.2f}")
 
     def on_trial_select(self, e):
         sel = self.tree_trials.selection()
