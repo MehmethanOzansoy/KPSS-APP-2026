@@ -167,6 +167,61 @@ class HomeTabMixin:
         
         self.update_charts()
 
+    def build_quick_note_section(self, parent):
+        """Ana sayfaya hızlı not alma ve dinamik motivasyon alanı ekler."""
+        note_frame = ctk.CTkFrame(parent, fg_color="white", corner_radius=10)
+        note_frame.pack(fill="x", pady=15, padx=5)
+        
+        # Başlık ve İkon
+        header_frm = ctk.CTkFrame(note_frame, fg_color="transparent")
+        header_frm.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(header_frm, text="📝 Hızlı Çalışma Notu", 
+                     font=("Segoe UI", 15, "bold"), text_color="#2c3e50").pack(side="left")
+        
+        # Kaydet Butonu (Küçük ve Şık)
+        save_btn = ctk.CTkButton(header_frm, text="Kaydet", width=60, height=24,
+                                 fg_color="#27ae60", hover_color="#219150",
+                                 command=self.save_quick_note)
+        save_btn.pack(side="right")
+
+        # Not Giriş Alanı
+        self.txt_quick_note = ctk.CTkTextbox(note_frame, height=80, font=("Segoe UI", 12),
+                                            fg_color="#fdfdfd", border_width=1, border_color="#ecf0f1")
+        self.txt_quick_note.pack(fill="x", padx=10, pady=(0, 10))
+        
+        # Veritabanından veya dosyadan eski notu yükle
+        self.load_quick_note()
+
+        # Dinamik Motivasyon Sözü (Alt Bilgi)
+        quote_frame = ctk.CTkFrame(note_frame, fg_color="#f8f9fa", corner_radius=5)
+        quote_frame.pack(fill="x", padx=10, pady=(0, 10))
+        
+        random_quote = random.choice(MOTIVATION_QUOTES) if 'MOTIVATION_QUOTES' in globals() else "Başarı azim gerektirir."
+        ctk.CTkLabel(quote_frame, text=f"💡 {random_quote}", 
+                     font=("Segoe UI", 10, "italic"), text_color="#7f8c8d", wraplength=350).pack(pady=5)
+
+    def save_quick_note(self):
+        """Notu güvenli bir şekilde kaydeder."""
+        note_content = self.txt_quick_note.get("1.0", "end-1c")
+        try:
+            # Notu hem belleğe hem dosyaya yaz (Persistance)
+            with open(resource_path("assets/quick_note.txt"), "w", encoding="utf-8") as f:
+                f.write(note_content)
+            messagebox.showinfo("Başarılı", "Çalışma notun kaydedildi!")
+        except Exception as e:
+            messagebox.showerror("Hata", f"Kaydedilemedi: {e}")
+
+    def load_quick_note(self):
+        """Eski notu yükler."""
+        note_path = resource_path("assets/quick_note.txt")
+        if os.path.exists(note_path):
+            try:
+                with open(note_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    self.txt_quick_note.insert("1.0", content)
+            except: pass
+
     def update_charts(self):
         self.ax_line.clear()
         dates = []; nets = []
