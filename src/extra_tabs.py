@@ -169,3 +169,296 @@ class ExtraTabsMixin:
         self.data = load_all_from_db()
         for i in self.tree_media.get_children(): self.tree_media.delete(i)
         for m in self.data["media"]: self.tree_media.insert("", "end", iid=str(m["id"]), values=(m["type"], m["title"]))
+            # ---- 4. DAILY TASKS (Günlük Görevler) ----
+    def build_daily_tasks_tab(self):
+        self.tab_daily_tasks.grid_columnconfigure(0, weight=1)
+        self.tab_daily_tasks.grid_rowconfigure(1, weight=1)
+        
+        # Üst panel - Görev ekleme
+        f = ctk.CTkFrame(self.tab_daily_tasks)
+        f.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        
+        self.ent_task = ctk.CTkEntry(f, placeholder_text="Görev", width=300)
+        self.ent_task.pack(side="left", padx=5)
+        
+        self.ent_priority = ctk.CTkComboBox(f, values=["1", "2", "3", "4", "5"], width=60)
+        self.ent_priority.pack(side="left", padx=5)
+        
+        ctk.CTkButton(f, text="Ekle", command=self.add_daily_task).pack(side="left", padx=5)
+        
+        # Görev listesi
+        self.tree_daily = ttk.Treeview(self.tab_daily_tasks, 
+                                       columns=("prio", "task", "status"), 
+                                       show="headings")
+        self.tree_daily.heading("prio", text="Öncelik")
+        self.tree_daily.heading("task", text="Görev")
+        self.tree_daily.heading("status", text="Durum")
+        self.tree_daily.column("prio", width=80)
+        self.tree_daily.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+        self.tree_daily.bind("<Double-1>", self.toggle_daily_task)
+        
+        # Alt panel - Sil butonu
+        ctk.CTkButton(self.tab_daily_tasks, text="Sil", fg_color="red", 
+                     command=self.delete_daily_task).grid(row=2, column=0, pady=5, sticky="e", padx=10)
+        
+        self.refresh_daily_tasks()
+    
+    def add_daily_task(self):
+        task = self.ent_task.get()
+        prio = self.ent_priority.get()
+        if not task:
+            return
+        
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("INSERT INTO daily_tasks (task, priority, is_completed) VALUES (?,?,0)", 
+                    (task, int(prio)))
+        conn.commit()
+        conn.close()
+        
+        self.ent_task.delete(0, "end")
+        self.refresh_daily_tasks()
+    
+    def refresh_daily_tasks(self):
+        from database import load_all_from_db
+        self.data = load_all_from_db()
+        
+        for i in self.tree_daily.get_children():
+            self.tree_daily.delete(i)
+        
+        for t in self.data["daily_tasks"]:
+            status = "✓ Tamamlandı" if t["is_completed"] else "○ Bekliyor"
+            self.tree_daily.insert("", "end", iid=str(t["id"]), 
+                                  values=(t["priority"], t["task"], status))
+    
+    def toggle_daily_task(self, e):
+        sel = self.tree_daily.selection()
+        if not sel:
+            return
+        
+        tid = int(sel[0])
+        curr = next((x for x in self.data["daily_tasks"] if x["id"]==tid), None)
+        if curr:
+            new_val = 0 if curr["is_completed"] else 1
+            conn = sqlite3.connect(DB_FILE)
+            conn.execute("UPDATE daily_tasks SET is_completed = ? WHERE id=?", (new_val, tid))
+            conn.commit()
+            conn.close()
+            self.refresh_daily_tasks()
+    
+    def delete_daily_task(self):
+        sel = self.tree_daily.selection()
+        if not sel:
+            return
+        
+        tid = int(sel[0])
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("DELETE FROM daily_tasks WHERE id=?", (tid,))
+        conn.commit()
+        conn.close()
+        self.refresh_daily_tasks()
+
+    # ---- 5. MEDIA RECOMMENDATIONS (Medya Önerileri) ----
+    def build_media_tab(self):
+        self.tab_media.grid_columnconfigure(0, weight=1)
+        self.tab_media.grid_rowconfigure(1, weight=1)
+        
+        # Üst panel - Medya ekleme
+        f = ctk.CTkFrame(self.tab_media)
+        f.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        
+        self.ent_media_type = ctk.CTkComboBox(f, values=["Kitap", "Film", "Video", "Podcast", "Makale"], width=120)
+        self.ent_media_type.pack(side="left", padx=5)
+        
+        self.ent_media_title = ctk.CTkEntry(f, placeholder_text="Başlık", width=250)
+        self.ent_media_title.pack(side="left", padx=5)
+        
+        self.ent_media_link = ctk.CTkEntry(f, placeholder_text="Link (opsiyonel)", width=200)
+        self.ent_media_link.pack(side="left", padx=5)
+        
+        ctk.CTkButton(f, text="Ekle", command=self.add_media).pack(side="left", padx=5)
+        
+        # Medya listesi
+        self.tree_media_main = ttk.Treeview(self.tab_media, 
+                                           columns=("type", "title", "link"), 
+                                           show="headings")
+        self.tree_media_main.heading("type", text="Tür")
+        self.tree_media_main.heading("title", text="Başlık")
+        self.tree_media_main.heading("link", text="Link")
+        self.tree_media_main.column("type", width=100)
+        self.tree_media_main.column("title", width=300)
+        self.tree_media_main.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+        self.tree_media_main.bind("<Double-1>", self.open_media_link)
+        
+        # Alt panel - Sil butonu
+        ctk.CTkButton(self.tab_media, text="Sil", fg_color="red", 
+                     command=self.delete_media).grid(row=2, column=0, pady=5, sticky="e", padx=10)
+        
+        self.refresh_media()
+    
+    def add_media(self):
+        mtype = self.ent_media_type.get()
+        title = self.ent_media_title.get()
+        link = self.ent_media_link.get()
+        
+        if not title:
+            return
+        
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("INSERT INTO media (type, title, link) VALUES (?,?,?)", 
+                    (mtype, title, link))
+        conn.commit()
+        conn.close()
+        
+        self.ent_media_title.delete(0, "end")
+        self.ent_media_link.delete(0, "end")
+        self.refresh_media()
+    
+    def refresh_media(self):
+        from database import load_all_from_db
+        self.data = load_all_from_db()
+        
+        for i in self.tree_media_main.get_children():
+            self.tree_media_main.delete(i)
+        
+        for m in self.data["media"]:
+            link_display = m.get("link", "")[:30] + "..." if len(m.get("link", "")) > 30 else m.get("link", "")
+            self.tree_media_main.insert("", "end", iid=str(m["id"]), 
+                                       values=(m["type"], m["title"], link_display))
+    
+    def open_media_link(self, e):
+        sel = self.tree_media_main.selection()
+        if not sel:
+            return
+        
+        mid = int(sel[0])
+        media = next((x for x in self.data["media"] if x["id"]==mid), None)
+        if media and media.get("link"):
+            import webbrowser
+            webbrowser.open(media["link"])
+    
+    def delete_media(self):
+        sel = self.tree_media_main.selection()
+        if not sel:
+            return
+        
+        mid = int(sel[0])
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("DELETE FROM media WHERE id=?", (mid,))
+        conn.commit()
+        conn.close()
+        self.refresh_media()
+
+    # ---- 6. STUDY NOTES (Çalışma Notları) ----
+    def build_notes_tab(self):
+        self.tab_notes.grid_columnconfigure(0, weight=1)
+        self.tab_notes.grid_rowconfigure(1, weight=1)
+        
+        # Üst panel - Not ekleme
+        f = ctk.CTkFrame(self.tab_notes)
+        f.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        
+        self.ent_note_subject = ctk.CTkEntry(f, placeholder_text="Ders", width=150)
+        self.ent_note_subject.pack(side="left", padx=5)
+        
+        self.ent_note_topic = ctk.CTkEntry(f, placeholder_text="Konu", width=200)
+        self.ent_note_topic.pack(side="left", padx=5)
+        
+        ctk.CTkButton(f, text="Yeni Not", command=self.new_note).pack(side="left", padx=5)
+        ctk.CTkButton(f, text="Kaydet", command=self.save_note, fg_color="green").pack(side="left", padx=5)
+        
+        # Not listesi ve editör
+        container = ctk.CTkFrame(self.tab_notes)
+        container.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+        container.grid_columnconfigure(1, weight=1)
+        container.grid_rowconfigure(0, weight=1)
+        
+        # Sol panel - Liste
+        self.tree_notes = ttk.Treeview(container, columns=("subject", "topic", "date"), 
+                                      show="headings", width=300)
+        self.tree_notes.heading("subject", text="Ders")
+        self.tree_notes.heading("topic", text="Konu")
+        self.tree_notes.heading("date", text="Tarih")
+        self.tree_notes.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        self.tree_notes.bind("<<TreeviewSelect>>", self.load_note_content)
+        
+        # Sağ panel - Editör
+        self.txt_note_editor = ctk.CTkTextbox(container)
+        self.txt_note_editor.grid(row=0, column=1, sticky="nsew")
+        
+        # Alt panel - Sil butonu
+        ctk.CTkButton(self.tab_notes, text="Sil", fg_color="red", 
+                     command=self.delete_note).grid(row=2, column=0, pady=5, sticky="e", padx=10)
+        
+        self.current_note_id = None
+        self.refresh_notes()
+    
+    def new_note(self):
+        subject = self.ent_note_subject.get()
+        topic = self.ent_note_topic.get()
+        
+        if not subject or not topic:
+            messagebox.showwarning("Uyarı", "Ders ve konu giriniz!")
+            return
+        
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.execute("INSERT INTO notes (subject, topic, content, date) VALUES (?,?,?,?)", 
+                             (subject, topic, "", date.today().isoformat()))
+        self.current_note_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        self.txt_note_editor.delete("0.0", "end")
+        self.refresh_notes()
+    
+    def save_note(self):
+        if not self.current_note_id:
+            messagebox.showwarning("Uyarı", "Önce bir not seçin veya oluşturun!")
+            return
+        
+        content = self.txt_note_editor.get("0.0", "end-1c")
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("UPDATE notes SET content = ? WHERE id = ?", (content, self.current_note_id))
+        conn.commit()
+        conn.close()
+        
+        messagebox.showinfo("Başarılı", "Not kaydedildi!")
+    
+    def refresh_notes(self):
+        from database import load_all_from_db
+        self.data = load_all_from_db()
+        
+        for i in self.tree_notes.get_children():
+            self.tree_notes.delete(i)
+        
+        if "notes" in self.data:
+            for n in self.data["notes"]:
+                self.tree_notes.insert("", "end", iid=str(n["id"]), 
+                                      values=(n["subject"], n["topic"], n["date"]))
+    
+    def load_note_content(self, e):
+        sel = self.tree_notes.selection()
+        if not sel:
+            return
+        
+        nid = int(sel[0])
+        self.current_note_id = nid
+        note = next((x for x in self.data.get("notes", []) if x["id"]==nid), None)
+        
+        if note:
+            self.txt_note_editor.delete("0.0", "end")
+            self.txt_note_editor.insert("0.0", note.get("content", ""))
+    
+    def delete_note(self):
+        sel = self.tree_notes.selection()
+        if not sel or not messagebox.askyesno("Sil", "Notu silmek istediğinizden emin misiniz?"):
+            return
+        
+        nid = int(sel[0])
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("DELETE FROM notes WHERE id=?", (nid,))
+        conn.commit()
+        conn.close()
+        
+        self.current_note_id = None
+        self.txt_note_editor.delete("0.0", "end")
+        self.refresh_notes()
